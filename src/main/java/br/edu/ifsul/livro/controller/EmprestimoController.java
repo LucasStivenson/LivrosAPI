@@ -18,7 +18,6 @@ import br.edu.ifsul.livro.model.Livro;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
-
 @RestController
 @RequestMapping("/livros")
 public class EmprestimoController {
@@ -38,7 +37,7 @@ public class EmprestimoController {
 
     @PostMapping("/emprestimos")
     public ResponseEntity<?> registrarEmprestimo(@RequestParam Long livroId, @RequestParam String usuario) {
-        
+
         Livro livroEmprestado = null;
         for (Livro livro : livros) {
             if (livro.getId().equals(livroId)) {
@@ -62,14 +61,62 @@ public class EmprestimoController {
         novoEmprestimo.setUsuario(usuario);
         novoEmprestimo.setDataEmprestimo(LocalDate.now());
 
+        List<Livro> listaLivros = new ArrayList<>();
+        listaLivros.add(livroEmprestado);
         emprestimos.add(novoEmprestimo);
+        novoEmprestimo.setLivros(listaLivros);
 
         return ResponseEntity.status(HttpStatus.CREATED).body("Empréstimo registrado com sucesso!");
     }
 
-    @PutMapping("path/{id}")
-    public String putMethodName(@PathVariable String id, @RequestBody String entity) {
-        return entity;
+    @PutMapping("/emprestimos/devolver/{id}")
+    public ResponseEntity<?> registrarDevolucao(@PathVariable Long id) {
+        Livro livroEmprestado = null;
+        for (Livro livro : livros) {
+            if (livro.getId().equals(id)) {
+                livroEmprestado = livro;
+                break;
+            }
+        }
+
+        if (livroEmprestado == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Livro não encontrado.");
+        }
+
+        if (livroEmprestado.isDisponivel()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Este livro não foi emprestado.");
+        }
+
+        for (Emprestimo emprestimo : emprestimos) {
+            if (emprestimo.getLivros().contains(livroEmprestado)) {
+                emprestimo.setDataDevolucao(LocalDate.now());
+                break;
+            }
+        }
+
+        livroEmprestado.setDisponivel(true);
+
+        return ResponseEntity.ok("Livro devolvido com sucesso!");
     }
 
+    @GetMapping("/emprestimos")
+    public ResponseEntity<List<Emprestimo>> listarEmprestimos() {
+        return ResponseEntity.ok(emprestimos);
+    }
+
+    @GetMapping("/livrosdispo")
+    public ResponseEntity<?> listarDisponiveis() {
+        List<Livro> livrosDisponiveis = new ArrayList<>();
+        for (Livro livro : livros) {
+            if (livro.isDisponivel()) {
+                livrosDisponiveis.add(livro);
+            }
+        }
+
+        if (livrosDisponiveis.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Nenhum livro disponível no momento.");
+        }
+
+        return ResponseEntity.ok(livrosDisponiveis);
+    }
 }
